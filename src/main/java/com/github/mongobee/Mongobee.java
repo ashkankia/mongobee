@@ -1,21 +1,6 @@
 package com.github.mongobee;
 
-import static com.mongodb.ServerAddress.defaultHost;
-import static com.mongodb.ServerAddress.defaultPort;
-import static org.springframework.util.StringUtils.hasText;
-
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.List;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.jongo.Jongo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.core.env.Environment;
-import org.springframework.data.mongodb.core.MongoTemplate;
-
 import com.github.mongobee.changeset.ChangeEntry;
 import com.github.mongobee.dao.ChangeEntryDao;
 import com.github.mongobee.exception.MongobeeChangeSetException;
@@ -27,6 +12,20 @@ import com.mongodb.DB;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.client.MongoDatabase;
+import org.jongo.Jongo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.core.env.Environment;
+import org.springframework.data.mongodb.core.MongoTemplate;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.List;
+
+import static com.mongodb.ServerAddress.defaultHost;
+import static com.mongodb.ServerAddress.defaultPort;
+import static org.springframework.util.StringUtils.hasText;
 
 /**
  * Mongobee runner
@@ -70,6 +69,17 @@ public class Mongobee implements InitializingBean {
     this.mongoClientURI = mongoClientURI;
     this.setDbName(mongoClientURI.getDatabase());
     this.dao = new ChangeEntryDao();
+  }
+
+  /**
+   * Used DB name should be set here or via MongoDB URI (in a constructor)
+   *
+   * @param dbName database name
+   * @return Mongobee object for fluent interface
+   */
+  public Mongobee setDbName(String dbName) {
+    this.dbName = dbName;
+    return this;
   }
 
   /**
@@ -160,6 +170,22 @@ public class Mongobee implements InitializingBean {
     logger.info("Mongobee has finished his job.");
   }
 
+  /**
+   * @return true if Mongobee runner is enabled and able to run, otherwise false
+   */
+  public boolean isEnabled() {
+    return enabled;
+  }
+
+  private void validateConfig() throws MongobeeConfigurationException {
+    if (!hasText(dbName)) {
+      throw new MongobeeConfigurationException("DB name is not set. It should be defined in MongoDB URI or via setter");
+    }
+    if (!hasText(changeLogsScanPackage)) {
+      throw new MongobeeConfigurationException("Scan package for changelogs is not set: use appropriate setter");
+    }
+  }
+
   private void executeMigration() throws MongobeeConnectionException, MongobeeException {
 
     ChangeService service = new ChangeService(changeLogsScanPackage, springEnvironment);
@@ -227,10 +253,15 @@ public class Mongobee implements InitializingBean {
       return changeSetMethod.invoke(changeLogInstance, mongoDatabase);
     } else if (changeSetMethod.getParameterTypes().length == 2
         && changeSetMethod.getParameterTypes()[0].equals(MongoTemplate.class)
-        && changeSetMethod.getParameterTypes()[2].equals(ObjectMapper.class)) {
+        && changeSetMethod.getParameterTypes()[1].equals(ObjectMapper.class)) {
       logger.debug("method with MongoTemplate and ObjectMapper arguments");
       return changeSetMethod.invoke(changeLogInstance, mongoTemplate != null ? mongoTemplate : new MongoTemplate(db.getMongo(), dbName),
-          objectMapper != null ? objectMapper: new ObjectMapper());
+          objectMapper != null ? objectMapper : new ObjectMapper());
+    } else if (changeSetMethod.getParameterTypes().length == 2
+        && changeSetMethod.getParameterTypes()[0].equals(MongoDatabase.class)
+        && changeSetMethod.getParameterTypes()[1].equals(ObjectMapper.class)) {
+      logger.debug("method with DB and ObjectMapper arguments");
+      return changeSetMethod.invoke(changeLogInstance, mongoDatabase, objectMapper != null ? objectMapper : new ObjectMapper());
     } else {
       if (changeSetMethod.getParameterTypes().length == 0) {
         logger.debug("method with no params");
@@ -243,13 +274,15 @@ public class Mongobee implements InitializingBean {
     }
   }
 
-  private void validateConfig() throws MongobeeConfigurationException {
-    if (!hasText(dbName)) {
-      throw new MongobeeConfigurationException("DB name is not set. It should be defined in MongoDB URI or via setter");
-    }
-    if (!hasText(changeLogsScanPackage)) {
-      throw new MongobeeConfigurationException("Scan package for changelogs is not set: use appropriate setter");
-    }
+  /**
+   * Feature which enables/disables Mongobee runner execution
+   *
+   * @param enabled MOngobee will run only if this option is set to true
+   * @return Mongobee object for fluent interface
+   */
+  public Mongobee setEnabled(boolean enabled) {
+    this.enabled = enabled;
+    return this;
   }
 
   /**
@@ -258,17 +291,6 @@ public class Mongobee implements InitializingBean {
    */
   public boolean isExecutionInProgress() throws MongobeeConnectionException {
     return dao.isProccessLockHeld();
-  }
-
-  /**
-   * Used DB name should be set here or via MongoDB URI (in a constructor)
-   *
-   * @param dbName database name
-   * @return Mongobee object for fluent interface
-   */
-  public Mongobee setDbName(String dbName) {
-    this.dbName = dbName;
-    return this;
   }
 
   /**
@@ -290,24 +312,6 @@ public class Mongobee implements InitializingBean {
    */
   public Mongobee setChangeLogsScanPackage(String changeLogsScanPackage) {
     this.changeLogsScanPackage = changeLogsScanPackage;
-    return this;
-  }
-
-  /**
-   * @return true if Mongobee runner is enabled and able to run, otherwise false
-   */
-  public boolean isEnabled() {
-    return enabled;
-  }
-
-  /**
-   * Feature which enables/disables Mongobee runner execution
-   *
-   * @param enabled MOngobee will run only if this option is set to true
-   * @return Mongobee object for fluent interface
-   */
-  public Mongobee setEnabled(boolean enabled) {
-    this.enabled = enabled;
     return this;
   }
 
