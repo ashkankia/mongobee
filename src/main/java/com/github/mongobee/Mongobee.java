@@ -8,6 +8,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jongo.Jongo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,8 +45,8 @@ public class Mongobee implements InitializingBean {
   private MongoClient mongoClient;
   private String dbName;
   private Environment springEnvironment;
-
   private MongoTemplate mongoTemplate;
+  private ObjectMapper objectMapper;
   private Jongo jongo;
 
   /**
@@ -224,13 +225,21 @@ public class Mongobee implements InitializingBean {
       logger.debug("method with DB argument");
 
       return changeSetMethod.invoke(changeLogInstance, mongoDatabase);
-    } else if (changeSetMethod.getParameterTypes().length == 0) {
-      logger.debug("method with no params");
-
-      return changeSetMethod.invoke(changeLogInstance);
+    } else if (changeSetMethod.getParameterTypes().length == 2
+        && changeSetMethod.getParameterTypes()[0].equals(MongoTemplate.class)
+        && changeSetMethod.getParameterTypes()[2].equals(ObjectMapper.class)) {
+      logger.debug("method with MongoTemplate and ObjectMapper arguments");
+      return changeSetMethod.invoke(changeLogInstance, mongoTemplate != null ? mongoTemplate : new MongoTemplate(db.getMongo(), dbName),
+          objectMapper != null ? objectMapper: new ObjectMapper());
     } else {
-      throw new MongobeeChangeSetException("ChangeSet method " + changeSetMethod.getName() +
-          " has wrong arguments list. Please see docs for more info!");
+      if (changeSetMethod.getParameterTypes().length == 0) {
+        logger.debug("method with no params");
+
+        return changeSetMethod.invoke(changeLogInstance);
+      } else {
+        throw new MongobeeChangeSetException("ChangeSet method " + changeSetMethod.getName() +
+            " has wrong arguments list. Please see docs for more info!");
+      }
     }
   }
 
