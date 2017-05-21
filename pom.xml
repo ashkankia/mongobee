@@ -7,7 +7,7 @@
     <description>MongoDB data migration tool for Java</description>
     <url>https://github.com/mongobee/mongobee</url>
 
-    <groupId>com.github.mongobee-custom</groupId>
+    <groupId>com.github.mongobee</groupId>
     <artifactId>mongobee-custom</artifactId>
     <version>0.14-SNAPSHOT</version>
 

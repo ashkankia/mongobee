@@ -334,6 +334,17 @@ public class Mongobee implements InitializingBean {
   }
 
   /**
+   * Sets pre-configured {@link ObjectMapper} instance to use by the Mongobee
+   *
+   * @param objectMapper instance of the {@link ObjectMapper}
+   * @return Mongobee object for fluent interface
+   */
+  public Mongobee setObjectMapper(ObjectMapper objectMapper) {
+    this.objectMapper = objectMapper;
+    return this;
+  }
+
+  /**
    * Sets pre-configured {@link MongoTemplate} instance to use by the Mongobee
    *
    * @param jongo {@link Jongo} instance
