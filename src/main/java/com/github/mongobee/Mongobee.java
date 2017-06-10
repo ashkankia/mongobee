@@ -16,6 +16,7 @@ import org.jongo.Jongo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
@@ -45,6 +46,7 @@ public class Mongobee implements InitializingBean {
   private String dbName;
   private Environment springEnvironment;
   private MongoTemplate mongoTemplate;
+  private ApplicationContext applicationContext;
   private ObjectMapper objectMapper;
   private Jongo jongo;
 
@@ -239,13 +241,15 @@ public class Mongobee implements InitializingBean {
     } else if (changeSetMethod.getParameterTypes().length == 1
         && changeSetMethod.getParameterTypes()[0].equals(Jongo.class)) {
       logger.debug("method with Jongo argument");
-
       return changeSetMethod.invoke(changeLogInstance, jongo != null ? jongo : new Jongo(db));
     } else if (changeSetMethod.getParameterTypes().length == 1
         && changeSetMethod.getParameterTypes()[0].equals(MongoTemplate.class)) {
       logger.debug("method with MongoTemplate argument");
-
       return changeSetMethod.invoke(changeLogInstance, mongoTemplate != null ? mongoTemplate : new MongoTemplate(db.getMongo(), dbName));
+    } else if (changeSetMethod.getParameterTypes().length == 1
+        && changeSetMethod.getParameterTypes()[0].equals(ApplicationContext.class)) {
+      logger.debug("method with Spring ApplicationContext argument");
+      return changeSetMethod.invoke(changeLogInstance, applicationContext);
     } else if (changeSetMethod.getParameterTypes().length == 1
         && changeSetMethod.getParameterTypes()[0].equals(MongoDatabase.class)) {
       logger.debug("method with DB argument");
@@ -256,6 +260,12 @@ public class Mongobee implements InitializingBean {
         && changeSetMethod.getParameterTypes()[1].equals(ObjectMapper.class)) {
       logger.debug("method with MongoTemplate and ObjectMapper arguments");
       return changeSetMethod.invoke(changeLogInstance, mongoTemplate != null ? mongoTemplate : new MongoTemplate(db.getMongo(), dbName),
+          objectMapper != null ? objectMapper : new ObjectMapper());
+    } else if (changeSetMethod.getParameterTypes().length == 2
+        && changeSetMethod.getParameterTypes()[0].equals(ApplicationContext.class)
+        && changeSetMethod.getParameterTypes()[1].equals(ObjectMapper.class)) {
+      logger.debug("method with Spring ApplicationContext and ObjectMapper arguments");
+      return changeSetMethod.invoke(changeLogInstance, applicationContext != null ? applicationContext : null,
           objectMapper != null ? objectMapper : new ObjectMapper());
     } else if (changeSetMethod.getParameterTypes().length == 2
         && changeSetMethod.getParameterTypes()[0].equals(MongoDatabase.class)
@@ -334,6 +344,17 @@ public class Mongobee implements InitializingBean {
    */
   public Mongobee setMongoTemplate(MongoTemplate mongoTemplate) {
     this.mongoTemplate = mongoTemplate;
+    return this;
+  }
+
+  /**
+   * Sets pre-configured {@link ApplicationContext} instance to use by the Mongobee
+   *
+   * @param applicationContext instance of the {@link ApplicationContext}
+   * @return Mongobee object for fluent interface
+   */
+  public Mongobee setApplicationContext(ApplicationContext applicationContext) {
+    this.applicationContext = applicationContext;
     return this;
   }
 

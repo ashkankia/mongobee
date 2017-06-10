@@ -9,7 +9,7 @@
 
     <groupId>com.github.mongobee</groupId>
     <artifactId>mongobee-custom</artifactId>
-    <version>0.14</version>
+    <version>0.15</version>
 
     <licenses>
         <license>
